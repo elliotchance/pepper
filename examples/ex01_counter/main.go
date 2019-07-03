@@ -1,18 +1,16 @@
 package main
 
-import (
-	"github.com/elliotchance/pepper"
-	"html/template"
-)
+import "github.com/elliotchance/pepper"
 
 type Counter struct {
 	Number int
 }
 
-func (c *Counter) Render() (*template.Template, error) {
-	return template.New("").Parse(`
+func (c *Counter) Render() (string, error) {
+	return `
 		Counter: {{ .Number }}<br/>
-		<button onclick="{{ .AddOne }}">+</button>`)
+		<button @click="AddOne">+</button>
+	`, nil
 }
 
 func (c *Counter) AddOne() {
