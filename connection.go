@@ -39,9 +39,31 @@ func newConnection(newConnection NewConnectionFunc) func(w http.ResponseWriter, 
 			}
 
 			var response []byte
-			if payload["method"] != "app.Refresh" {
+			switch payload["method"] {
+			case "app.Refresh":
+			// Do nothing, fall through to rerender.
+
+			case "app.SetAttribute":
+				reflect.ValueOf(app).
+					Elem().
+					FieldByName(payload["key"]).
+					SetString(payload["value"])
+
+			default:
 				name := strings.Split(payload["method"], ".")[1]
-				reflect.ValueOf(app).MethodByName(name).Call(nil)
+				method := reflect.ValueOf(app).MethodByName(name)
+
+				var params []reflect.Value
+
+				if method.Type().NumIn() > 0 {
+					params = append(params, reflect.ValueOf(payload["key"]))
+				}
+
+				if method.Type().NumIn() > 1 {
+					params = append(params, reflect.ValueOf(payload["value"]))
+				}
+
+				method.Call(params)
 			}
 
 			response, err = render(app)
