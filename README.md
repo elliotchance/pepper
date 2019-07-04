@@ -7,6 +7,7 @@ Create reactive frontends without ever writing frontend code.
    * [Examples](#examples)
       * [#1: A Simple Counter](#1-a-simple-counter)
       * [#2: Forms](#2-forms)
+      * [#3: Nested Components](#3-nested-components)
 
 # How Does It Work?
 
@@ -53,7 +54,7 @@ type Counter struct {
 
 func (c *Counter) Render() (string, error) {
 	return `
-		Counter: {{ .Number }}<br/>
+		Counter: {{ .Number }}
 		<button @click="AddOne">+</button>
 	`, nil
 }
@@ -78,7 +79,7 @@ Try it now:
 
 ```bash
 go get -u github.com/elliotchance/pepper/examples/ex01_counter
-./ex01_counter
+ex01_counter
 ```
 
 Then open: [http://localhost:8080/](http://localhost:8080/)
@@ -143,7 +144,65 @@ Try it now:
 
 ```bash
 go get -u github.com/elliotchance/pepper/examples/ex02_form
-./ex02_form
+ex02_form
+```
+
+Then open: [http://localhost:8080/](http://localhost:8080/)
+
+
+## #3: Nested Components
+
+```go
+type Counters struct {
+	Counters []*Counter
+}
+
+func (c *Counters) Render() (string, error) {
+	return `
+		<table>
+			{{ range .Counters }}
+				<tr><td>
+					{{ render . }}
+				</td></tr>
+			{{ end }}
+			<tr><td>
+				Total: {{ call .Total }}
+			</td></tr>
+		</table>
+	`, nil
+}
+
+func (c *Counters) Total() int {
+	total := 0
+	for _, counter := range c.Counters {
+		total += counter.Number
+	}
+
+	return total
+}
+
+func main() {
+	panic(pepper.StartServer(func() pepper.Component {
+		return &Counters{
+			Counters: []*Counter{
+				{}, {}, {},
+			},
+		}
+	}))
+}
+```
+
+- This example uses three `Counter` components (from Example #1) and includes a
+live total.
+- Components can be nested with the `render` function. The nested components do
+not need to be modified in any way.
+- Invoke methods with the `call` function.
+
+Try it now:
+
+```bash
+go get -u github.com/elliotchance/pepper/examples/ex03_nested
+ex03_nested
 ```
 
 Then open: [http://localhost:8080/](http://localhost:8080/)

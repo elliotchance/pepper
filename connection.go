@@ -38,20 +38,20 @@ func newConnection(newConnection NewConnectionFunc) func(w http.ResponseWriter, 
 				break
 			}
 
-			var response []byte
-			switch payload["method"] {
-			case "app.Refresh":
-			// Do nothing, fall through to rerender.
+			var response string
+			parts := strings.Split(payload["method"], ".")
 
-			case "app.SetAttribute":
-				reflect.ValueOf(app).
+			if parts[0] == "app" && parts[1] == "Refresh" {
+				// Do nothing, fall through to rerender.
+			} else if parts[1] == "SetAttribute" {
+				component := getComponentByID(parts[0])
+				reflect.ValueOf(component).
 					Elem().
 					FieldByName(payload["key"]).
 					SetString(payload["value"])
-
-			default:
-				name := strings.Split(payload["method"], ".")[1]
-				method := reflect.ValueOf(app).MethodByName(name)
+			} else {
+				component := getComponentByID(parts[0])
+				method := reflect.ValueOf(component).MethodByName(parts[1])
 
 				var params []reflect.Value
 
@@ -72,7 +72,7 @@ func newConnection(newConnection NewConnectionFunc) func(w http.ResponseWriter, 
 				break
 			}
 
-			err = c.WriteMessage(mt, response)
+			err = c.WriteMessage(mt, []byte(response))
 			if err != nil {
 				log.Println("write:", err)
 				break
