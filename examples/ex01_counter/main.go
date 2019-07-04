@@ -8,7 +8,7 @@ type Counter struct {
 
 func (c *Counter) Render() (string, error) {
 	return `
-		Counter: {{ .Number }}<br/>
+		Counter: {{ .Number }}
 		<button @click="AddOne">+</button>
 	`, nil
 }

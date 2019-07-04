@@ -26,10 +26,30 @@ func replaceAllStringSubmatchFunc(re *regexp.Regexp, str string, repl func([]str
 	return result + str[lastIndex:]
 }
 
-func render(c Component) ([]byte, error) {
+var componentIDs = map[Component]string{}
+
+func getComponentByID(id string) Component {
+	for c, cID := range componentIDs {
+		if cID == id {
+			return c
+		}
+	}
+
+	return nil
+}
+
+func getComponentID(c Component) string {
+	if _, ok := componentIDs[c]; !ok {
+		componentIDs[c] = fmt.Sprintf("%p", c)[2:]
+	}
+
+	return componentIDs[c]
+}
+
+func render(c Component) (string, error) {
 	templateData, err := c.Render()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	templateData = "{{ $template := . }}" + replaceAllStringSubmatchFunc(
@@ -43,35 +63,46 @@ func render(c Component) ([]byte, error) {
 					attribute, attribute, attribute)
 			}
 
-			return fmt.Sprintf(`on%s="send('app.%s', this)"`, event, attribute)
+			return fmt.Sprintf(`on%s="send('%s.%s', this)"`,
+				event, getComponentID(c), attribute)
 		})
 
-	t, err := template.New("").Parse(templateData)
+	t, err := template.New("").Funcs(map[string]interface{}{
+		"render": func(c Component) (template.HTML, error) {
+			data, err := render(c)
+
+			return template.HTML(data), err
+		},
+	}).Parse(templateData)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	buf := bytes.NewBuffer(nil)
 	data := map[string]interface{}{}
 	ty := reflect.TypeOf(c)
 	tyElem := ty.Elem()
-	val := reflect.ValueOf(c).Elem()
+	val := reflect.ValueOf(c)
+	valElem := val.Elem()
 
 	// Fields
 	for i := 0; i < tyElem.NumField(); i++ {
-		data[tyElem.Field(i).Name] = val.Field(i).Interface()
+		data[tyElem.Field(i).Name] = valElem.Field(i).Interface()
 	}
 
 	// Methods
 	for i := 0; i < ty.NumMethod(); i++ {
 		name := ty.Method(i).Name
-		data[name] = template.JS(fmt.Sprintf(`send('app.%s', this)`, name))
+		data[name] = val.Method(i).Interface()
 	}
 
 	err = t.Execute(buf, data)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return buf.Bytes(), nil
+	div := fmt.Sprintf(`<div id="component-%s">%s</div>`,
+		getComponentID(c), buf.String())
+
+	return div, nil
 }
