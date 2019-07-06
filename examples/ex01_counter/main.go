@@ -18,7 +18,7 @@ func (c *Counter) AddOne() {
 }
 
 func main() {
-	panic(pepper.StartServer(func() pepper.Component {
+	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
 		return &Counter{}
 	}))
 }
