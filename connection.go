@@ -90,7 +90,7 @@ func (conn *Connection) start() error {
 			method.Call(params)
 		}
 
-		response, err = render(conn.RootComponent)
+		response, err = Render(conn.RootComponent)
 		if err != nil {
 			log.Println("render:", err)
 			break
@@ -107,7 +107,7 @@ func (conn *Connection) start() error {
 }
 
 func (conn *Connection) Update() {
-	response, err := render(conn.RootComponent)
+	response, err := Render(conn.RootComponent)
 	if err != nil {
 		log.Println("render:", err)
 		return

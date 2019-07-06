@@ -4,6 +4,8 @@ Create reactive frontends without ever writing frontend code.
 
    * [How Does It Work?](#how-does-it-work)
    * [What Should/Shouldn't I Use It For?](#what-shouldshouldnt-i-use-it-for)
+   * [Testing](#testing)
+      * [Unit Testing](#unit-testing)
    * [Examples](#examples)
       * [#1: A Simple Counter](#1-a-simple-counter)
       * [#2: Forms](#2-forms)
@@ -39,6 +41,46 @@ or restored into a serialized format like JSON. Great for forms or surveys with
 many questions/steps.
 4. Prototyping a frontend app. It's super easy to get up and running and iterate
 changes without setting up a complex environment, build tools and dependencies.
+
+# Testing
+
+## Unit Testing
+
+The `peppertest` package provides tools to make unit testing easier.
+
+`RenderToDocument` renders then parses the component into a `*Document` from the
+[github.com/PuerkitoBio/goquery](https://github.com/PuerkitoBio/goquery)
+package:
+
+```go
+import (
+	"github.com/elliotchance/pepper/peppertest"
+	"github.com/stretchr/testify/require"
+	"testing"
+)
+
+func TestPeople_Add(t *testing.T) {
+	c := &People{
+		Names: []string{"Jack", "Jill"},
+	}
+
+	c.Name = "Bob"
+	c.Add()
+
+	doc, err := peppertest.RenderToDocument(c)
+	require.NoError(t, err)
+
+	rows := doc.Find("tr")
+	require.Equal(t, 3, rows.Length())
+	require.Contains(t, rows.Eq(0).Text(), "Jack")
+	require.Contains(t, rows.Eq(1).Text(), "Jill")
+	require.Contains(t, rows.Eq(2).Text(), "Bob")
+}
+```
+
+Each of the examples in the
+[examples/](https://github.com/elliotchance/pepper/tree/master/examples)
+directory include unit tests.
 
 # Examples
 
