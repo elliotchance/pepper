@@ -46,7 +46,7 @@ func getComponentID(c Component) string {
 	return componentIDs[c]
 }
 
-func render(c Component) (string, error) {
+func Render(c Component) (string, error) {
 	templateData, err := c.Render()
 	if err != nil {
 		return "", err
@@ -69,7 +69,7 @@ func render(c Component) (string, error) {
 
 	t, err := template.New("").Funcs(map[string]interface{}{
 		"render": func(c Component) (template.HTML, error) {
-			data, err := render(c)
+			data, err := Render(c)
 
 			return template.HTML(data), err
 		},
