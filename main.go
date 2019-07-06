@@ -6,7 +6,7 @@ import (
 )
 
 func StartServer(newConnectionFn NewConnectionFunc) error {
-	http.HandleFunc("/ws", newConnection(newConnectionFn))
+	http.HandleFunc("/ws", websocketHandler(newConnectionFn))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		homeTemplate.Execute(w, "ws://"+r.Host+"/ws")
 	})

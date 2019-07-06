@@ -46,7 +46,7 @@ func (c *Counters) Total() int {
 }
 
 func main() {
-	panic(pepper.StartServer(func() pepper.Component {
+	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
 		return &Counters{
 			Counters: []*Counter{
 				{}, {}, {},

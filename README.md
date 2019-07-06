@@ -8,6 +8,7 @@ Create reactive frontends without ever writing frontend code.
       * [#1: A Simple Counter](#1-a-simple-counter)
       * [#2: Forms](#2-forms)
       * [#3: Nested Components](#3-nested-components)
+      * [#4: Ticker](#4-ticker)
 
 # How Does It Work?
 
@@ -64,7 +65,7 @@ func (c *Counter) AddOne() {
 }
 
 func main() {
-	panic(pepper.StartServer(func() pepper.Component {
+	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
 		return &Counter{}
 	}))
 }
@@ -125,7 +126,7 @@ func (c *People) Add() {
 }
 
 func main() {
-	panic(pepper.StartServer(func() pepper.Component {
+	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
 		return &People{
 			Names: []string{"Jack", "Jill"},
 		}
@@ -182,7 +183,7 @@ func (c *Counters) Total() int {
 }
 
 func main() {
-	panic(pepper.StartServer(func() pepper.Component {
+	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
 		return &Counters{
 			Counters: []*Counter{
 				{}, {}, {},
@@ -203,6 +204,52 @@ Try it now:
 ```bash
 go get -u github.com/elliotchance/pepper/examples/ex03_nested
 ex03_nested
+```
+
+Then open: [http://localhost:8080/](http://localhost:8080/)
+
+## #4: Ticker
+
+```go
+package main
+
+import (
+	"github.com/elliotchance/pepper"
+	"time"
+)
+
+type Clock struct{}
+
+func (c *Clock) Render() (string, error) {
+	return `
+		The time now is {{ call .Now }}.
+	`, nil
+}
+
+func (c *Clock) Now() string {
+	return time.Now().Format(time.RFC1123)
+}
+
+func main() {
+	panic(pepper.StartServer(func(conn *pepper.Connection) pepper.Component {
+		go func() {
+			for range time.NewTicker(time.Second).C {
+				conn.Update()
+			}
+		}()
+
+		return &Clock{}
+	}))
+}
+```
+
+- The component is updated once per second so the client sees the active time.
+
+Try it now:
+
+```bash
+go get -u github.com/elliotchance/pepper/examples/ex04_ticker
+ex04_ticker
 ```
 
 Then open: [http://localhost:8080/](http://localhost:8080/)
