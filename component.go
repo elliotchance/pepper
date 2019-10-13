@@ -59,8 +59,8 @@ func Render(c Component) (string, error) {
 			event, attribute := strings[1], strings[2]
 			if event == "value" {
 				return fmt.Sprintf(
-					`activekey="%s" value="{{ $template.%s }}" onkeyup="sendSetAttribute('%s', this.value)"`,
-					attribute, attribute, attribute)
+					`activekey="%s" value="{{ $template.%s }}" onkeyup="sendSetAttribute('%s', '%s', this.value)"`,
+					attribute, attribute, getComponentID(c), attribute)
 			}
 
 			return fmt.Sprintf(`on%s="send('%s.%s', this)"`,
