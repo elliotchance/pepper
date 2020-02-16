@@ -18,7 +18,7 @@ func (c *Clock) Now() string {
 }
 
 func main() {
-	panic(pepper.StartServer(func(conn *pepper.Connection) pepper.Component {
+	panic(pepper.NewServer().Start(func(conn *pepper.Connection) pepper.Component {
 		go func() {
 			for range time.NewTicker(time.Second).C {
 				conn.Update()

@@ -4,6 +4,7 @@ Create reactive frontends without ever writing frontend code.
 
    * [How Does It Work?](#how-does-it-work)
    * [What Should/Shouldn't I Use It For?](#what-shouldshouldnt-i-use-it-for)
+   * [Handling Offline and Reconnecting](#handling-offline-and-reconnecting)
    * [Testing](#testing)
       * [Unit Testing](#unit-testing)
    * [Examples](#examples)
@@ -41,6 +42,22 @@ or restored into a serialized format like JSON. Great for forms or surveys with
 many questions/steps.
 4. Prototyping a frontend app. It's super easy to get up and running and iterate
 changes without setting up a complex environment, build tools and dependencies.
+
+# Handling Offline and Reconnecting
+
+When creating the server you may configure how you want disconnects to be
+handled. For example:
+
+```go
+server := pepper.NewServer()
+server.OfflineAction = pepper.OfflineActionDisableForms
+```
+
+By default clients will try to reconnect every second. This can be changed with
+`server.ReconnectInterval`.
+
+**Important:** When reconnecting the server treats the new request as a new
+client, so all state on the page will be lost.
 
 # Testing
 
@@ -107,7 +124,7 @@ func (c *Counter) AddOne() {
 }
 
 func main() {
-	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
+	panic(pepper.NewServer().Start(func(_ *pepper.Connection) pepper.Component {
 		return &Counter{}
 	}))
 }
@@ -168,7 +185,7 @@ func (c *People) Add() {
 }
 
 func main() {
-	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
+	panic(pepper.NewServer().Start(func(_ *pepper.Connection) pepper.Component {
 		return &People{
 			Names: []string{"Jack", "Jill"},
 		}
@@ -225,7 +242,7 @@ func (c *Counters) Total() int {
 }
 
 func main() {
-	panic(pepper.StartServer(func(_ *pepper.Connection) pepper.Component {
+	panic(pepper.NewServer().Start(func(_ *pepper.Connection) pepper.Component {
 		return &Counters{
 			Counters: []*Counter{
 				{}, {}, {},
@@ -273,7 +290,7 @@ func (c *Clock) Now() string {
 }
 
 func main() {
-	panic(pepper.StartServer(func(conn *pepper.Connection) pepper.Component {
+	panic(pepper.NewServer().Start(func(conn *pepper.Connection) pepper.Component {
 		go func() {
 			for range time.NewTicker(time.Second).C {
 				conn.Update()
