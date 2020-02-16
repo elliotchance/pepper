@@ -56,9 +56,9 @@ function send(method, self) {
 	ws.send(JSON.stringify(payload));
 }
 
-function sendSetAttribute(name, value) {
+function sendSetAttribute(componentID, name, value) {
 	var payload = {
-		method: "app.SetAttribute",
+		method: componentID+".SetAttribute",
 		key: name,
 		value: value,
 	};
