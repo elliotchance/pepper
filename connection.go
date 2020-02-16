@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 )
 
 type Connection struct {
+	LastSeen      time.Time
 	RootComponent Component
 	Connection    *websocket.Conn
 }
@@ -27,7 +29,7 @@ func websocketHandler(newConnectionFunc NewConnectionFunc) func(w http.ResponseW
 		}
 		defer c.Close()
 
-		connection := newConnection(c, newConnectionFunc)
+		connection := newConnection(c, r.URL.Path, newConnectionFunc)
 		err = connection.start()
 		if err != nil {
 			log.Print("start:", err)
@@ -36,12 +38,26 @@ func websocketHandler(newConnectionFunc NewConnectionFunc) func(w http.ResponseW
 	}
 }
 
-func newConnection(c *websocket.Conn, newConnection NewConnectionFunc) *Connection {
+var connections = map[string]*Connection{}
+
+func newConnection(c *websocket.Conn, cid string, newConnection NewConnectionFunc) *Connection {
+	if connection, isExisting := connections[cid]; isExisting {
+		log.Println("client reconnected:", cid)
+		connection.Connection = c
+		connection.LastSeen = time.Now()
+
+		return connection
+	}
+
+	log.Println("new client:", cid)
+
 	connection := &Connection{
 		Connection: c,
+		LastSeen:   time.Now(),
 	}
 
 	connection.RootComponent = newConnection(connection)
+	connections[cid] = connection
 
 	return connection
 }
@@ -58,14 +74,17 @@ func (conn *Connection) start() error {
 		var payload map[string]string
 		err = json.Unmarshal(message, &payload)
 		if err != nil {
-			log.Println("read:", err)
+			log.Println("unmarshal:", err)
 			break
 		}
 
 		var response string
 		parts := strings.Split(payload["method"], ".")
 
-		if parts[0] == "app" && parts[1] == "Refresh" {
+		// Heartbeat
+		if parts[0] == "heartbeat" {
+			conn.LastSeen = time.Now()
+		} else if parts[0] == "app" && parts[1] == "Refresh" {
 			// Do nothing, fall through to rerender.
 		} else if parts[1] == "SetAttribute" {
 			component := getComponentByID(parts[0])

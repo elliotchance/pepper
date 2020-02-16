@@ -1,35 +1,67 @@
 package pepper
 
 import (
+	"fmt"
 	"html/template"
+	"log"
+	"math/rand"
 	"net/http"
 	"time"
 )
 
 type Server struct {
+	// ConnectionRetentionTime is the maximum time allowed for a connection to
+	// exist in memory after the client has disconnected. A duration greater
+	// than zero ensured that a client can reconnect without losing any state.
+	// However, the trade off is the extra memory consumed by holding too many
+	// truly gone clients in memory. The default is 1 minute.
+	//
+	// ReconnectInterval should be less than ConnectionRetentionTime.
+	ConnectionRetentionTime time.Duration
+
+	// ConnectionRetentionInterval is the amount of time between each operation
+	// to locate and evict old connections that are beyond
+	// ConnectionRetentionTime. Lowing this value will increase the amount of
+	// CPU, but may also decrease the amount of memory if many connections are
+	// short-lived. The default is 1 minute.
+	ConnectionRetentionInterval time.Duration
+
+	// HeartbeatInterval is how often the client will notify the server that the
+	// connection is still active. It is important that this value be lower than
+	// ConnectionRetentionTime. The default is 1 second.
+	HeartbeatInterval time.Duration
+
 	// OfflineAction controls the behavior of the client when it loses
 	// connection with the server. See constants for explanation.
 	OfflineAction OfflineAction
 
 	// ReconnectInterval configures how long the client should wait before
 	// trying to reconnect to the server. The default is 1 second.
+	//
+	// Also see ConnectionRetentionTime.
 	ReconnectInterval time.Duration
 }
 
 func NewServer() *Server {
 	return &Server{
-		OfflineAction:     OfflineActionDisablePage,
-		ReconnectInterval: time.Second,
+		ConnectionRetentionTime:     time.Minute,
+		ConnectionRetentionInterval: time.Minute,
+		HeartbeatInterval:           time.Second,
+		OfflineAction:               OfflineActionDisablePage,
+		ReconnectInterval:           time.Second,
 	}
 }
 
 // Start will start the application. Each client that connects will call
 // newConnectionFn.
 func (server *Server) Start(newConnectionFn NewConnectionFunc) error {
-	http.HandleFunc("/ws", websocketHandler(newConnectionFn))
+	go server.startConnectionRetentionGarbageCollector()
+
+	http.HandleFunc("/ws/", websocketHandler(newConnectionFn))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		cid := rand.Int()
 		err := homeTemplate.Execute(w, map[string]interface{}{
-			"ws":                "ws://" + r.Host + "/ws",
+			"ws":                fmt.Sprintf("ws://%s/ws/%d", r.Host, cid),
 			"isConnected":       template.JS(getIsConnectedJavascript(server.OfflineAction)),
 			"reconnectInterval": server.ReconnectInterval.Milliseconds(),
 		})
@@ -42,13 +74,28 @@ func (server *Server) Start(newConnectionFn NewConnectionFunc) error {
 	return http.ListenAndServe("localhost:8080", nil)
 }
 
+func (server *Server) startConnectionRetentionGarbageCollector() {
+	for {
+		time.Sleep(server.ConnectionRetentionInterval)
+
+		evictConnectionsOlderThan := time.Now().Add(-server.ConnectionRetentionTime)
+
+		for cid, connection := range connections {
+			if connection.LastSeen.Before(evictConnectionsOlderThan) {
+				log.Println("evicting connection:", cid)
+				delete(connections, cid)
+			}
+		}
+	}
+}
+
 var homeTemplate = template.Must(template.New("").Parse(`
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <script>
-var ws, activeKey;
+var ws, activeKey, heartbeat;
 
 function setIsConnected(isConnected) {
 	{{ .isConnected }}
@@ -60,6 +107,9 @@ function openConnection() {
 		console.log("WebSocketOpened");
 		send("app.Refresh");
 		setIsConnected(true);
+		setInterval(function () {
+			ws.send(JSON.stringify({method: 'heartbeat'}));
+		}, {{ .heartbeatInterval }});
 	}
 	ws.onclose = function(evt) {
 		console.log("WebSocketClosed");
